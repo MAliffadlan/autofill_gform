@@ -61,15 +61,15 @@ def parse_gform(url):
     post_url = f"https://docs.google.com/forms/d/e/{form_id}/formResponse"
     view_url = f"https://docs.google.com/forms/d/e/{form_id}/viewform"
 
-    # Cek apakah form memerlukan login (test POST dulu)
-    try:
-        test_data = urllib.parse.urlencode({'fvv': '1'}).encode('utf-8')
-        test_req = urllib.request.Request(post_url, data=test_data, headers={'User-Agent': 'Mozilla/5.0'})
-        urllib.request.urlopen(test_req)
-    except urllib.error.HTTPError as e:
-        if e.code == 401:
-            print(f"[!] PERINGATAN: Form ini memerlukan login akun Google. Script tidak dapat mengisi form yang memerlukan login.")
-            return None
+    # Deteksi fitur 'Batasi ke 1 Tanggapan' atau 'Wajib Login' di setelan Google Form
+    meta2 = data[1][2] if len(data[1]) > 2 and data[1][2] else None
+    meta10 = data[1][10] if len(data[1]) > 10 and data[1][10] else None
+    requires_login = (meta2 and len(meta2) > 3 and meta2[3] == 1) or (meta10 and len(meta10) > 6 and meta10[6] == 3)
+
+    if requires_login:
+        print(f"[!] PERINGATAN: Form ini mengaktifkan opsi 'Batasi ke 1 Tanggapan' atau 'Wajib Login Google'.")
+        print(f"    Google menolak pengisian otomatis tanpa akun Google yang terotentikasi.")
+        return None
 
     questions = []
     page_count = 1
@@ -172,26 +172,35 @@ def get_fbzx(view_url, user_agent):
 def kirim_jawaban(form_info, i=0, max_retries=3):
     nama, jk, hp = random_identitas()
     user_agent = random.choice(USER_AGENTS)
-    fbzx_token = get_fbzx(form_info['view_url'], user_agent)
-
-    form_data = {
-        'fvv': '1',
-        'pageHistory': form_info['page_history'],
-        'fbzx': fbzx_token,
-    }
-
-    # Isi semua pertanyaan secara cerdas
-    for q in form_info['questions']:
-        form_data[q['id']] = generate_answer(q, nama, jk, hp)
-
-    encoded_data = urllib.parse.urlencode(form_data).encode('utf-8')
-    req = urllib.request.Request(
-        form_info['post_url'],
-        data=encoded_data,
-        headers={'User-Agent': user_agent}
-    )
 
     for attempt in range(1, max_retries + 1):
+        # Ambil fbzx token segar setiap percobaan
+        fbzx_token = get_fbzx(form_info['view_url'], user_agent)
+
+        form_data = {
+            'fvv': '1',
+            'pageHistory': form_info['page_history'],
+            'fbzx': fbzx_token,
+            'partialResponse': f'[null,null,"{fbzx_token}"]',
+            'submissionTimestamp': str(int(time.time() * 1000)),
+        }
+
+        # Isi semua pertanyaan secara cerdas
+        for q in form_info['questions']:
+            form_data[q['id']] = generate_answer(q, nama, jk, hp)
+
+        encoded_data = urllib.parse.urlencode(form_data).encode('utf-8')
+        req = urllib.request.Request(
+            form_info['post_url'],
+            data=encoded_data,
+            headers={
+                'User-Agent': user_agent,
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Referer': form_info['view_url'],
+                'Origin': 'https://docs.google.com',
+            }
+        )
+
         try:
             with urllib.request.urlopen(req) as response:
                 if response.status == 200:
