@@ -76,7 +76,7 @@ def parse_gform(url):
     for item in data[1][1]:
         if item is None:
             continue
-        q_title = item[1]
+        q_title = item[1] if item[1] is not None else ""
         q_type = item[3]
 
         if q_type == 8:
@@ -121,13 +121,16 @@ def random_identitas():
 
 def generate_answer(q, nama, jk, hp):
     """Menghasilkan jawaban cerdas berdasarkan jenis pertanyaan"""
-    title_lower = q['title'].lower()
+    title_text = q['title'] if q['title'] is not None else ""
+    title_lower = title_text.lower()
 
     # Smart Field Matching
     if re.search(r'\b(nama|name)\b', title_lower):
         return nama
     elif re.search(r'\b(kelamin|gender)\b', title_lower):
         return jk
+    elif re.search(r'\b(nim|npm|nrp|student id|nomor induk)\b', title_lower):
+        return "2024" + "".join(random.choices(string.digits, k=6))
     elif re.search(r'\b(telp|phone|nomer|nomor|hp|wa|telepon|handphone)\b', title_lower):
         return hp
     elif q['options']:
