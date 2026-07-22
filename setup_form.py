@@ -1,0 +1,192 @@
+import urllib.request
+import urllib.parse
+import re
+import json
+import sys
+
+def parse_gform(url):
+    """Menganalisis dan mengekstrak pertanyaan serta Entry ID dari URL Google Form"""
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+    try:
+        with urllib.request.urlopen(req) as resp:
+            html = resp.read().decode('utf-8')
+    except Exception as e:
+        print(f"[-] Gagal mengambil halaman Google Form: {e}")
+        return None
+
+    match = re.search(r'FB_PUBLIC_LOAD_DATA_\s*=\s*(.*?);</script>', html, re.DOTALL)
+    if not match:
+        print("[-] Gagal mengekstrak data dari Google Form (FB_PUBLIC_LOAD_DATA_ tidak ditemukan).")
+        return None
+
+    try:
+        data = json.loads(match.group(1))
+    except Exception as e:
+        print(f"[-] Gagal me-parse JSON data form: {e}")
+        return None
+
+    form_title = data[1][8] if len(data[1]) > 8 and data[1][8] else (data[1][0] if data[1] else "Google Form")
+    form_id = data[14] if len(data) > 14 else ""
+    post_url = f"https://docs.google.com/forms/d/e/{form_id}/formResponse"
+
+    questions = []
+    page_count = 1
+
+    for item in data[1][1]:
+        if item is None:
+            continue
+        q_title = item[1]
+        q_type = item[3]
+        
+        # Jika tipe 8, artinya Section/Page Break
+        if q_type == 8:
+            page_count += 1
+            continue
+
+        if item[4] and len(item[4]) > 0 and item[4][0]:
+            entry_id = item[4][0][0]
+            options = []
+            if len(item[4][0]) > 1 and item[4][0][1]:
+                options = [opt[0] for opt in item[4][0][1]]
+            
+            questions.append({
+                'id': f"entry.{entry_id}",
+                'title': q_title,
+                'type': q_type,
+                'options': options
+            })
+
+    page_history = ",".join(str(i) for i in range(page_count))
+
+    return {
+        'title': form_title,
+        'view_url': url,
+        'post_url': post_url,
+        'page_history': page_history,
+        'questions': questions
+    }
+
+def generate_script(form_info, output_file="isi_gform.py"):
+    """Membuat file script isi_gform.py secara otomatis sesuai struktur form baru"""
+    
+    questions_code = ""
+    for idx, q in enumerate(form_info['questions']):
+        title_clean = q['title'].replace('\n', ' ').strip()
+        if q['options']:
+            options_str = str(q['options'])
+            questions_code += f"        '{q['id']}': str(random.choice({options_str})),  # {title_clean[:50]}\n"
+        else:
+            questions_code += f"        '{q['id']}': f'Jawaban_{{i+1}}',  # {title_clean[:50]}\n"
+
+    script_content = f'''import urllib.request
+import urllib.parse
+import re
+import random
+import string
+import time
+import sys
+
+FORM_VIEW_URL = "{form_info['view_url']}"
+FORM_POST_URL = "{form_info['post_url']}"
+PAGE_HISTORY = "{form_info['page_history']}"
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0"
+]
+
+def show_progress_bar(current, total, bar_length=25):
+    percent = float(current) / total
+    arrow = '█' * int(round(percent * bar_length))
+    spaces = '░' * (bar_length - len(arrow))
+    sys.stdout.write(f"\\rProgress: [{{arrow}}{{spaces}}] {{int(round(percent * 100))}}% ({{current}}/{{total}})")
+    sys.stdout.flush()
+
+def get_fbzx(user_agent):
+    try:
+        req = urllib.request.Request(FORM_VIEW_URL, headers={{'User-Agent': user_agent}})
+        with urllib.request.urlopen(req) as resp:
+            html = resp.read().decode('utf-8')
+            match = re.search(r'name="fbzx"\\s+value="([^"]+)"', html)
+            if match:
+                return match.group(1)
+    except Exception:
+        pass
+    return ""
+
+def kirim_jawaban(i, max_retries=3):
+    user_agent = random.choice(USER_AGENTS)
+    fbzx_token = get_fbzx(user_agent)
+
+    form_data = {{
+        'fvv': '1',
+        'pageHistory': PAGE_HISTORY,
+        'fbzx': fbzx_token,
+
+        # Data Isian Otomatis
+{questions_code}    }}
+
+    encoded_data = urllib.parse.urlencode(form_data).encode('utf-8')
+    req = urllib.request.Request(
+        FORM_POST_URL, 
+        data=encoded_data, 
+        headers={{'User-Agent': user_agent}}
+    )
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            with urllib.request.urlopen(req) as response:
+                if response.status == 200:
+                    return True
+        except Exception:
+            time.sleep(1.5 * attempt)
+            
+    return False
+
+if __name__ == '__main__':
+    jumlah = input("Mau kirim berapa kali? (default 1): ").strip()
+    jumlah = int(jumlah) if jumlah.isdigit() else 1
+
+    print(f"\\n=== Mengirim {{jumlah}}x Data ke Google Form: {form_info['title']} ===\\n")
+    
+    berhasil = 0
+    for i in range(jumlah):
+        if kirim_jawaban(i):
+            berhasil += 1
+            show_progress_bar(i + 1, jumlah)
+            if i < jumlah - 1:
+                time.sleep(round(random.uniform(1.0, 2.0), 1))
+
+    print(f"\\n\\n=== Selesai! {{berhasil}}/{{jumlah}} berhasil terkirim ===")
+'''
+
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(script_content)
+
+    print(f"[+] Berhasil membuat file script: '{output_file}'")
+
+if __name__ == '__main__':
+    print("=== GOOGLE FORM UNIVERSAL GENERATOR ===")
+    
+    if len(sys.argv) > 1:
+        url_form = sys.argv[1].strip()
+    else:
+        url_form = input("Masukkan URL Google Form Baru: ").strip()
+
+    if not url_form:
+        print("[-] URL Form tidak boleh kosong.")
+        sys.exit(1)
+
+    print(f"\n[i] Menganalisis Form di {url_form}...")
+    info = parse_gform(url_form)
+    
+    if info:
+        print(f"[+] Judul Form  : {info['title']}")
+        print(f"[+] Jumlah Page : {len(info['page_history'].split(','))}")
+        print(f"[+] Pertanyaan  : {len(info['questions'])} item terdeteksi")
+        print("\n[i] Memunculkan script 'isi_gform.py'...")
+        generate_script(info)
+        print("\n[+] Selesai! Sekarang kamu bisa menjalankan 'python3 isi_gform.py'.")
