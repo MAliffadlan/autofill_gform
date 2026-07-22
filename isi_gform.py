@@ -4,6 +4,7 @@ import re
 import random
 import string
 import time
+import sys
 
 FORM_VIEW_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc1GdRi9CL90AetRzRjf2UCwIkZS8HQ8q90Un2Mjk02fSkFfA/viewform"
 FORM_POST_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc1GdRi9CL90AetRzRjf2UCwIkZS8HQ8q90Un2Mjk02fSkFfA/formResponse"
@@ -53,6 +54,14 @@ KAMPUS_LIST = [
     "Lp3i Cikarang", "Lp3i Jakarta Pusat", "Lp3i Bekasi", "Lp3i Pondok Cabe",
     "Lp3i Jakarta Utara", "Lp3i Tanggerang",
 ]
+
+def show_progress_bar(current, total, bar_length=25):
+    """Menampilkan progress bar visual di Terminal"""
+    percent = float(current) / total
+    arrow = '█' * int(round(percent * bar_length))
+    spaces = '░' * (bar_length - len(arrow))
+    sys.stdout.write(f"\rProgress: [{arrow}{spaces}] {int(round(percent * 100))}% ({current}/{total})")
+    sys.stdout.flush()
 
 def random_identitas():
     """Generate nama, jenis kelamin, dan no HP yang konsisten"""
@@ -130,15 +139,14 @@ def kirim_jawaban(max_retries=3):
         try:
             with urllib.request.urlopen(req) as response:
                 if response.status == 200:
-                    retry_info = f" (Percobaan ke-{attempt})" if attempt > 1 else ""
+                    retry_info = f" (Retry #{attempt})" if attempt > 1 else ""
                     print(f"  [+] {nama} | {jk} | {hp} | {kampus}{retry_info}")
                     print(f"      Jawaban: {','.join(jawaban)}")
                     return True
         except Exception as e:
-            print(f"  [!] Percobaan {attempt}/{max_retries} gagal ({e})...", end="\r")
             time.sleep(1.5 * attempt) # Exponential backoff
             
-    print(f"  [-] Gagal mengirim data setelah {max_retries}x percobaan.")
+    print(f"  [-] Gagal mengirim data ({nama}) setelah {max_retries}x percobaan.")
     return False
 
 # ==========================================
@@ -148,16 +156,17 @@ if __name__ == '__main__':
     jumlah = input("Mau kirim berapa kali? (default 1): ").strip()
     jumlah = int(jumlah) if jumlah.isdigit() else 1
 
-    print(f"\n=== Mengirim {jumlah}x Data RANDOM (Auto-Retry Enabled) ke Google Form LP3I ===\n")
+    print(f"\n=== Mengirim {jumlah}x Data RANDOM ke Google Form LP3I ===\n")
     
     berhasil = 0
     for i in range(jumlah):
         print(f"#{i+1}:", end="")
         if kirim_jawaban():
             berhasil += 1
-            # Jeda acak 1 - 2.5 detik antar pengiriman
+            show_progress_bar(i + 1, jumlah)
+            print()
             if i < jumlah - 1:
-                delay = round(random.uniform(1.0, 2.5), 1)
+                delay = round(random.uniform(1.0, 2.0), 1)
                 time.sleep(delay)
 
-    print(f"\n=== Selesai! {berhasil}/{jumlah} berhasil terkirim ===")
+    print(f"\n\n=== Selesai! {berhasil}/{jumlah} berhasil terkirim ===")
