@@ -26,8 +26,10 @@ def parse_gform(url):
         return None
 
     form_title = data[1][8] if len(data[1]) > 8 and data[1][8] else (data[1][0] if data[1] else "Google Form")
-    form_id = data[14] if len(data) > 14 else ""
-    post_url = f"https://docs.google.com/forms/d/e/{form_id}/formResponse"
+    raw_form_id = data[14] if len(data) > 14 else ""
+    # Solusi bug URL double /e/
+    clean_form_id = raw_form_id.strip("/").replace("e/", "")
+    post_url = f"https://docs.google.com/forms/d/e/{clean_form_id}/formResponse"
 
     questions = []
     page_count = 1
@@ -38,7 +40,7 @@ def parse_gform(url):
         q_title = item[1]
         q_type = item[3]
         
-        # Jika tipe 8, artinya Section/Page Break
+        # Tipe 8: Section/Page Break
         if q_type == 8:
             page_count += 1
             continue
@@ -67,14 +69,26 @@ def parse_gform(url):
     }
 
 def generate_script(form_info, output_file="isi_gform.py"):
-    """Membuat file script isi_gform.py secara otomatis sesuai struktur form baru"""
+    """Membuat file script isi_gform.py secara otomatis dan cerdas sesuai struktur form baru"""
     
     questions_code = ""
     for idx, q in enumerate(form_info['questions']):
         title_clean = q['title'].replace('\n', ' ').strip()
-        if q['options']:
-            options_str = str(q['options'])
-            questions_code += f"        '{q['id']}': str(random.choice({options_str})),  # {title_clean[:50]}\n"
+        title_lower = title_clean.lower()
+        
+        # Smart Field Matching (dengan Word Boundary Regex agar tidak salah cocok)
+        if re.search(r'\b(nama|name)\b', title_lower):
+            questions_code += f"        '{q['id']}': nama,  # {title_clean[:50]}\n"
+        elif re.search(r'\b(kelamin|gender)\b', title_lower):
+            questions_code += f"        '{q['id']}': jk,  # {title_clean[:50]}\n"
+        elif re.search(r'\b(telp|phone|hp|wa|telepon|nomer)\b', title_lower):
+            questions_code += f"        '{q['id']}': hp,  # {title_clean[:50]}\n"
+        elif q['options']:
+            if set(q['options']).issubset({'1', '2', '3', '4', '5'}):
+                questions_code += f"        '{q['id']}': str(random.choices({q['options']}, weights=[5, 10, 20, 35, 30][:len({q['options']})])[0]),  # {title_clean[:50]}\n"
+            else:
+                options_str = str(q['options'])
+                questions_code += f"        '{q['id']}': random.choice({options_str}),  # {title_clean[:50]}\n"
         else:
             questions_code += f"        '{q['id']}': f'Jawaban_{{i+1}}',  # {title_clean[:50]}\n"
 
@@ -98,6 +112,21 @@ USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0"
 ]
 
+NAMA_DEPAN_COWOK = ["Ahmad", "Muhammad", "Rizki", "Dimas", "Andi", "Budi", "Fajar", "Gilang", "Hendra", "Irfan", "Kevin", "Naufal", "Putra", "Rafi", "Satria", "Yoga", "Bayu", "Deni", "Faisal"]
+NAMA_DEPAN_CEWEK = ["Siti", "Nur", "Dewi", "Ayu", "Putri", "Rina", "Dian", "Fitri", "Mega", "Nisa", "Indah", "Lestari", "Wulan", "Ratna", "Sari", "Anisa", "Bella", "Citra", "Maya"]
+NAMA_BELAKANG_COWOK = ["Pratama", "Saputra", "Nugraha", "Hidayat", "Ramadhan", "Kurniawan", "Setiawan", "Permana", "Firmansyah", "Hakim", "Wijaya", "Maulana", "Santoso", "Wibowo"]
+NAMA_BELAKANG_CEWEK = ["Rahayu", "Lestari", "Wulandari", "Handayani", "Puspitasari", "Anggraeni", "Maharani", "Fitriani", "Kusuma", "Utami", "Safitri", "Permatasari", "Damayanti"]
+
+def random_identitas():
+    jk = random.choice(["Laki-Laki", "Perempuan"])
+    if jk == "Laki-Laki":
+        nama = random.choice(NAMA_DEPAN_COWOK) + " " + random.choice(NAMA_BELAKANG_COWOK)
+    else:
+        nama = random.choice(NAMA_DEPAN_CEWEK) + " " + random.choice(NAMA_BELAKANG_CEWEK)
+    prefix = random.choice(["0812", "0813", "0856", "0857", "0878", "0877", "0838", "0852", "0853", "0896", "0895"])
+    hp = prefix + ''.join(random.choices(string.digits, k=random.randint(7, 8)))
+    return nama, jk, hp
+
 def show_progress_bar(current, total, bar_length=25):
     percent = float(current) / total
     arrow = '█' * int(round(percent * bar_length))
@@ -117,7 +146,8 @@ def get_fbzx(user_agent):
         pass
     return ""
 
-def kirim_jawaban(i, max_retries=3):
+def kirim_jawaban(i=0, max_retries=3):
+    nama, jk, hp = random_identitas()
     user_agent = random.choice(USER_AGENTS)
     fbzx_token = get_fbzx(user_agent)
 
@@ -140,10 +170,12 @@ def kirim_jawaban(i, max_retries=3):
         try:
             with urllib.request.urlopen(req) as response:
                 if response.status == 200:
+                    print(f"  [+] Respon #{{i+1}} terkirim: {{nama}} | {{jk}} | {{hp}}")
                     return True
         except Exception:
             time.sleep(1.5 * attempt)
             
+    print(f"  [-] Gagal mengirim respon #{{i+1}} setelah {{max_retries}}x percobaan.")
     return False
 
 if __name__ == '__main__':
@@ -157,10 +189,11 @@ if __name__ == '__main__':
         if kirim_jawaban(i):
             berhasil += 1
             show_progress_bar(i + 1, jumlah)
+            print()
             if i < jumlah - 1:
                 time.sleep(round(random.uniform(1.0, 2.0), 1))
 
-    print(f"\\n\\n=== Selesai! {{berhasil}}/{{jumlah}} berhasil terkirim ===")
+    print(f"\\n=== Selesai! {{berhasil}}/{{jumlah}} berhasil terkirim ===")
 '''
 
     with open(output_file, 'w', encoding='utf-8') as f:
