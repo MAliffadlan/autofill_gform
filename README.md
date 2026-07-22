@@ -1,52 +1,52 @@
-# 🤖 Google Form Auto Fill Script
+# Google Form Auto Fill Script
 
-Script Python otomatisasi pengisian Google Form dengan data acak realistis (nama, jenis kelamin, nomor telepon, asal kampus, dan 16 pertanyaan kuisioner skala Likert 1-5).
+Script Python untuk otomatisasi pengisian data pada Google Form multi-halaman/section secara terstruktur dengan generasi data acak yang realistis.
 
-Dibuat khusus untuk pengujian otomatisasi respons Google Form multi-halaman/section secara cepat, tahan eror, dan teratur.
-
----
-
-## ✨ Fitur Utama
-
-- 📑 **Multi-Section Support**: Mengatasi Google Form 2 halaman (Halaman Identitas & Halaman Kuisioner) menggunakan parameter `pageHistory: '0,1'`.
-- 📊 **Distribusi Likert Realistis**: Jawaban kuisioner (skala 1-5) di-generate dengan bobot realistis (dominan 4 dan 5) agar data hasil survei tampak alami.
-- 👤 **Gender-Matched Name Generator**: Nama otomatis disesuaikan secara konsisten dengan jenis kelamin (*Laki-Laki* / *Perempuan*).
-- 🔄 **Auto-Retry Mechanism**: Otomatis mencoba ulang (*retry*) hingga 3x jika terjadi gangguan jaringan atau respons lambat dengan *exponential backoff*.
-- 🌐 **User-Agent Rotation**: Berganti header perangkat secara acak (Android, iPhone, Windows, Mac, Linux) di tiap pengiriman agar tidak terdeteksi sebagai bot tunggal.
-- 📈 **Terminal Progress Bar**: Menampilkan indikator status dan progress bar visual secara *real-time* di Terminal.
-- ⏱️ **Random Delay**: Memberikan jeda acak 1.0 - 2.5 detik antar pengiriman untuk mencegah *rate limiting*.
-- 📦 **Zero External Dependencies**: Dibuat menggunakan modul bawaan standar Python (`urllib`, `re`, `random`, `time`, `sys`), sehingga **tidak perlu `pip install`**.
+Dibuat untuk keperluan pengujian dan otomatisasi pengisian survei/kuesioner berbasis Google Form.
 
 ---
 
-## 📋 Struktur Form yang Didukung
+## Fitur Utama
+
+- **Dukungan Multi-Section**: Mengisi data pada Google Form 2 halaman (Identitas dan Kuesioner) menggunakan parameter `pageHistory`.
+- **Generasi Identitas Konsisten**: Penyesuaian nama responden otomatis berdasarkan jenis kelamin (Laki-Laki / Perempuan).
+- **Distribusi Jawaban Realistis**: Pengisian kuesioner skala Likert (1 - 5) menggunakan distribusi bobot terarah agar data tetap representatif.
+- **Mekanisme Auto-Retry**: Mencoba ulang pengiriman hingga 3 kali secara otomatis apabila terjadi kendala jaringan atau kegagalan koneksi.
+- **Rotasi User-Agent**: Mengganti header browser/perangkat secara acak pada setiap permintaan untuk mensimulasikan akses dari berbagai perangkat.
+- **Indikator Progres**: Menampilkan status pengiriman dan progress bar pada terminal secara real-time.
+- **Jeda Waktu Acak (Random Delay)**: Memberikan jeda waktu acak 1.0 hingga 2.5 detik antar pengiriman untuk menghindari *rate-limiting*.
+- **Tanpa Dependensi Eksternal**: Menggunakan modul standar Python (`urllib`, `re`, `random`, `time`, `sys`), sehingga dapat dijalankan tanpa instalasi paket tambahan.
+
+---
+
+## Struktur Form yang Didukung
 
 1. **Halaman 1 (Identitas Responden)**:
-   - **Nama Lengkap** (Random kombinasi 50+ nama depan & belakang)
-   - **Jenis Kelamin** (Laki-Laki / Perempuan - terintegrasi dengan nama)
-   - **Nomor Telepon** (Random format provider Indonesia `08xx`)
-   - **Asal Kampus** (10 Cabang LP3I)
+   - Nama Lengkap (Kombinasi nama depan dan belakang)
+   - Jenis Kelamin (Laki-Laki / Perempuan)
+   - Nomor Telepon (Format provider Indonesia `08xx`)
+   - Asal Kampus (10 Pilihan Kampus LP3I)
 
-2. **Halaman 2 (Kuisioner Pernyataan)**:
-   - **16 Indikator & Sub-Indikator** Efektivitas Linux Native (Skala Likert 1 - 5)
+2. **Halaman 2 (Kuesioner Pernyataan)**:
+   - 16 Pertanyaan Indikator Pembelajaran Keamanan Jaringan Linux (Skala Likert 1 - 5)
 
 ---
 
-## 🚀 Cara Penggunaan
+## Cara Penggunaan
 
-### 1. Clone Repository
+### 1. Kloning Repository
 ```bash
 git clone https://github.com/MAliffadlan/autofill_gform.git
 cd autofill_gform
 ```
 
-### 2. Jalankan Script
+### 2. Menjalankan Script
 ```bash
 python3 isi_gform.py
 ```
 
-### 3. Tentukan Jumlah Pengiriman
-Saat script dijalankan, Anda akan diminta memasukkan jumlah pengisian yang diinginkan:
+### 3. Memasukkan Jumlah Pengisian
+Tentukan jumlah data yang ingin dikirimkan saat diminta pada terminal:
 ```text
 Mau kirim berapa kali? (default 1): 10
 
@@ -55,11 +55,12 @@ Mau kirim berapa kali? (default 1): 10
 #1:  [+] Ahmad Pratama | Laki-Laki | 081298471029 | Lp3i Jakarta Pusat
       Jawaban: 4,5,3,4,5,4,4,5,3,4,4,5,4,3,4,5
 Progress: [█████████████████████████] 100% (1/10)
-...
+
 === Selesai! 10/10 berhasil terkirim ===
 ```
 
 ---
 
-## 📝 Lisensi
-[MIT License](LICENSE) - Bebas digunakan dan dikembangkan.
+## Lisensi
+
+Proyek ini dilisensikan di bawah [MIT License](LICENSE).
