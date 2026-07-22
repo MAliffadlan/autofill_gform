@@ -29,25 +29,47 @@ def parse_gform(url):
     try:
         with urllib.request.urlopen(req) as resp:
             html = resp.read().decode('utf-8')
+            final_url = resp.url  # URL setelah redirect (paling reliable)
     except Exception as e:
         print(f"[-] Gagal mengambil halaman Google Form: {e}")
         return None
 
-    match = re.search(r'FB_PUBLIC_LOAD_DATA_\s*=\s*(.*?);</script>', html, re.DOTALL)
-    if not match:
+    # Cari posisi awal data JSON setelah FB_PUBLIC_LOAD_DATA_
+    marker = re.search(r'FB_PUBLIC_LOAD_DATA_\s*=\s*', html)
+    if not marker:
         print("[-] Gagal mengekstrak data form.")
         return None
 
     try:
-        data = json.loads(match.group(1))
+        decoder = json.JSONDecoder()
+        data, _ = decoder.raw_decode(html, marker.end())
     except Exception as e:
         print(f"[-] Gagal parse JSON: {e}")
         return None
 
     form_title = data[1][8] if len(data[1]) > 8 and data[1][8] else "Google Form"
-    raw_form_id = data[14] if len(data) > 14 else ""
-    clean_form_id = raw_form_id.strip("/").replace("e/", "")
-    post_url = f"https://docs.google.com/forms/d/e/{clean_form_id}/formResponse"
+
+    # Ambil Form ID dari final redirect URL (paling reliable, tidak pernah double /e/)
+    form_id_match = re.search(r'/forms/d/e/([^/]+)/', final_url)
+    if form_id_match:
+        form_id = form_id_match.group(1)
+    else:
+        # Fallback: ambil dari data[14]
+        raw = data[14] if len(data) > 14 else ""
+        form_id = raw.replace("e/", "") if raw.startswith("e/") else raw
+
+    post_url = f"https://docs.google.com/forms/d/e/{form_id}/formResponse"
+    view_url = f"https://docs.google.com/forms/d/e/{form_id}/viewform"
+
+    # Cek apakah form memerlukan login (test POST dulu)
+    try:
+        test_data = urllib.parse.urlencode({'fvv': '1'}).encode('utf-8')
+        test_req = urllib.request.Request(post_url, data=test_data, headers={'User-Agent': 'Mozilla/5.0'})
+        urllib.request.urlopen(test_req)
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            print(f"[!] PERINGATAN: Form ini memerlukan login akun Google. Script tidak dapat mengisi form yang memerlukan login.")
+            return None
 
     questions = []
     page_count = 1
@@ -79,7 +101,7 @@ def parse_gform(url):
 
     return {
         'title': form_title,
-        'view_url': url,
+        'view_url': view_url,
         'post_url': post_url,
         'page_history': page_history,
         'questions': questions
