@@ -119,6 +119,38 @@ def random_identitas():
     hp = prefix + ''.join(random.choices(string.digits, k=random.randint(7, 8)))
     return nama, jk, hp
 
+SARAN_LIST = [
+    "Sudah sangat baik dan membantu proses pembelajaran praktikum.",
+    "Secara keseluruhan sudah bagus, mohon dipertahankan.",
+    "Sangat membantu dalam memahami materi praktikum keamanan jaringan.",
+    "Perlu penambahan durasi waktu praktikum agar lebih maksimal.",
+    "Fasilitas dan modul praktikum sudah cukup jelas dan mudah dipahami.",
+    "Semoga kedepannya materi praktikum bisa terus diperbarui.",
+    "Sudah cukup memuaskan dan efisien.",
+]
+
+ALASAN_LIST = [
+    "Karena lebih stabil dan ringan saat digunakan praktikum.",
+    "Performa lebih cepat dan ramah sumber daya perangkat.",
+    "Lebih praktis dan fleksibel untuk konfigurasi tools jaringan.",
+    "Sistem operasi lebih responsif dan jarang mengalami crash.",
+    "Sudah terbiasa dan merasa lebih nyaman saat praktikum.",
+]
+
+KENDALA_LIST = [
+    "Tidak ada kendala yang berarti selama praktikum.",
+    "Kadang terkendala spesifikasi laptop namun masih bisa diatasi.",
+    "Proses instalasi awal memerlukan sedikit penyesuaian.",
+    "Secara umum lancar tanpa ada hambatan besar.",
+]
+
+GENERAL_TEXT_LIST = [
+    "Sudah baik dan efisien",
+    "Sangat bagus dan bermanfaat",
+    "Cukup jelas dan mudah dipahami",
+    "Lancar tanpa kendala",
+]
+
 def generate_answer(q, nama, jk, hp):
     """Menghasilkan jawaban cerdas berdasarkan jenis pertanyaan"""
     title_text = q['title'] if q['title'] is not None else ""
@@ -133,6 +165,12 @@ def generate_answer(q, nama, jk, hp):
         return "2024" + "".join(random.choices(string.digits, k=6))
     elif re.search(r'\b(telp|phone|nomer|nomor|hp|wa|telepon|handphone)\b', title_lower):
         return hp
+    elif re.search(r'\b(saran|masukan|kritik|evaluasi|catatan|tanggapan)\b', title_lower):
+        return random.choice(SARAN_LIST)
+    elif re.search(r'\b(alasan|mengapa|kenapa)\b', title_lower):
+        return random.choice(ALASAN_LIST)
+    elif re.search(r'\b(kendala|hambatan|masalah|kesulitan|keluhan)\b', title_lower):
+        return random.choice(KENDALA_LIST)
     elif q['options']:
         # Skala Likert (angka saja)
         if set(q['options']).issubset({'1', '2', '3', '4', '5'}):
@@ -144,7 +182,7 @@ def generate_answer(q, nama, jk, hp):
         else:
             return random.choice(q['options'])
     else:
-        return nama  # Fallback: isi dengan nama
+        return random.choice(GENERAL_TEXT_LIST)
 
 # ==========================================
 # UTILITAS
