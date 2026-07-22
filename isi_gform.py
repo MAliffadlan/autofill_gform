@@ -61,13 +61,12 @@ def parse_gform(url):
     post_url = f"https://docs.google.com/forms/d/e/{form_id}/formResponse"
     view_url = f"https://docs.google.com/forms/d/e/{form_id}/viewform"
 
-    # Deteksi fitur 'Batasi ke 1 Tanggapan' atau 'Wajib Login' di setelan Google Form
-    meta2 = data[1][2] if len(data[1]) > 2 and data[1][2] else None
+    # Deteksi fitur 'Wajib Login' di setelan Google Form (meta10[6] == 3)
     meta10 = data[1][10] if len(data[1]) > 10 and data[1][10] else None
-    requires_login = (meta2 and len(meta2) > 3 and meta2[3] == 1) or (meta10 and len(meta10) > 6 and meta10[6] == 3)
+    requires_login = (meta10 is not None and len(meta10) > 6 and meta10[6] == 3)
 
     if requires_login:
-        print(f"[!] PERINGATAN: Form ini mengaktifkan opsi 'Batasi ke 1 Tanggapan' atau 'Wajib Login Google'.")
+        print(f"[!] PERINGATAN: Form ini mengaktifkan opsi 'Wajib Login Google' (misal: membatasi domain organisasi).")
         print(f"    Google menolak pengisian otomatis tanpa akun Google yang terotentikasi.")
         return None
 
